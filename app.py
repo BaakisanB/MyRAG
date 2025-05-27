@@ -4,18 +4,24 @@ import streamlit as st
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
-from transformers import pipeline
 import faiss
 import numpy as np
 import os
+from openai import OpenAI
 
 # ---------------- Setup -------------------
 st.set_page_config(page_title="📄 Research Summarizer + Q&A", layout="centered")
 
+# OpenAI-compatible local API from LM Studio
+client = OpenAI(
+    base_url = "http://localhost:1234/v1",
+    api_key = "lm-studio"
+)
+
 PDF_DIR = "pdfs"
 os.makedirs(PDF_DIR, exist_ok=True)
 
-st.title("📄 Research & News Summarizer + Q&A")
+st.title("📄 Research & News Summarizer + Q&A (LLaMA 3)")
 
 # ---------------- File Upload -------------------
 uploaded_file = st.file_uploader("Upload a PDF", type="pdf")
@@ -52,13 +58,19 @@ else:
     index = faiss.IndexFlatL2(dimension)
     index.add(np.array(embeddings))
 
-    # Load QA/Summary model
-    summarizer = pipeline("text2text-generation", model="google/flan-t5-base", tokenizer="google/flan-t5-base")
-
     # ---------------- Summary Button -------------------
     if st.button("🔍 Generate Summary"):
-        summary_prompt = f"Summarize this:\n\n{texts[0]}"
-        summary = summarizer(summary_prompt, max_length=200, truncation=True)[0]["generated_text"]
+        summary_prompt = f"Summarize the following:\n\n{texts[0]}\n\nSummary:"
+        response = client.chat.completions.create(
+            model="llama3",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that summarizes documents."},
+                {"role": "user", "content": summary_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=300,
+        )
+        summary = response.choices[0].message.content
         st.subheader("📌 Summary")
         st.write(summary)
 
@@ -72,8 +84,16 @@ else:
         relevant_chunks = [texts[i] for i in I[0]]
         context = "\n\n".join(relevant_chunks)
 
-        prompt = f"Context: {context}\n\nQuestion: {user_question}\n\nAnswer:"
-        answer = summarizer(prompt, max_length=150, truncation=True)[0]["generated_text"]
-
+        qa_prompt = f"Context:\n{context}\n\nQuestion: {user_question}\n\nAnswer:"
+        response = client.chat.completions.create(
+            model="llama3",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that answers questions based on the provided context."},
+                {"role": "user", "content": qa_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=300,
+        )
+        answer = response.choices[0].message.content
         st.markdown("**Answer:**")
         st.write(answer)
