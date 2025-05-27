@@ -6,5 +6,6 @@ transformers
 faiss-cpu
 torch
 PyPDF2
+pypdf
 openai
 numpy
