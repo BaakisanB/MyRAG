@@ -7,13 +7,13 @@ from sentence_transformers import SentenceTransformer
 import faiss
 import numpy as np
 import os
-from openai import OpenAI
+import openai
 
 # ---------------- Setup -------------------
 st.set_page_config(page_title="📄 Research Summarizer + Q&A", layout="centered")
 
 # OpenAI-compatible local API from LM Studio
-client = OpenAI(
+client = openai.OpenAI(
     base_url = "http://localhost:1234/v1",
     api_key = "lm-studio"
 )
